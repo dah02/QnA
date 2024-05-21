@@ -7,6 +7,9 @@ import threading
 
 from openpibo.motion import Motion
 
+import time
+
+
 class pibo_motion(threading.Thread):
     def __init__(self, debug = False):
         threading.Thread.__init__(self)
@@ -31,22 +34,22 @@ class pibo_speech(threading.Thread):
 
         self.o_speech = mySpeech()
         #self.o_motion = Motion()
-        self.o_question = question_data("questions.txt")
+        self.o_question = question_data("/home/pi/QnA/questions.txt")
         
         self.point = []
         self.debug = debug
         
     def demo(self, num = None):
         def record(reverse=False):
-            res = self.o_speech.my_stt()
+            res = self.o_speech.stt()
             if self.debug == True:
                 print(res)
-            if "네" in res or "그렇습" in res:
+            if "네" in res or "그렇" in res or "맞아" in res or "있어" in res:
                 if reverse == False:
                     return 5
                 if reverse == True:
                     return 1
-            elif "아니" in res or "않습" in res:
+            elif "아니" in res or "없" in res or "아닌" in res or "아닙" in res:
                 if reverse == False:
                     return 1
                 if reverse == True:
@@ -55,8 +58,9 @@ class pibo_speech(threading.Thread):
                 return 3
             else:
                 msg = "다시 한 번만 말씀해 주시겠어요?"
-                #self.o_speech.my_tts(msg, "repeat1.wav")
-                self.o_speech.o_audio.play('repeat1.wav', out='local', volume=500, background=False)
+                self.o_speech.tts(string=msg)
+                #self.o_speech.tts(msg, "repeat1.wav")
+                # self.o_speech.o_audio.play('repeat1.wav', out='local', volume=-1000, background=False)
                 return record(reverse)
                 
         if num == None:
@@ -71,7 +75,7 @@ class pibo_speech(threading.Thread):
                 for q in question:
                     if self.debug == True:
                         print(q)
-                    self.o_speech.my_tts(q)
+                    self.o_speech.tts(string=q)
                     points += record()
                     
                     if self.debug == True:
@@ -80,11 +84,11 @@ class pibo_speech(threading.Thread):
                 if points >= thresh:
                     if self.debug == True:
                         print(pos)
-                    self.o_speech.my_tts(pos)
+                    self.o_speech.tts(string=pos)
                 else:
                     if self.debug == True:
                         print(neg)
-                    self.o_speech.my_tts(neg)
+                    self.o_speech.tts(string=neg)
                     
                 break
         else:
@@ -99,7 +103,7 @@ class pibo_speech(threading.Thread):
             for q in question:
                 if self.debug == True:
                         print(q)
-                self.o_speech.my_tts(q)
+                self.o_speech.tts(string=q)
                 points += record()
                 
                 if self.debug == True:
@@ -108,40 +112,13 @@ class pibo_speech(threading.Thread):
             if points >= thresh:
                 if self.debug == True:
                     print(pos)
-                self.o_speech.my_tts(pos)
+                self.o_speech.tts(string=pos)
             else:
                 if self.debug == True:
                     print(neg)
-                self.o_speech.my_tts(neg)
+                self.o_speech.tts(string=neg)
       
     
-    """
-    def demo2(self):
-        def record(reverse=False):
-            res = self.o_speech.my_stt()
-            if "네" in res or "그렇습" in res:
-                if reverse == False:
-                    return 5
-                if reverse == True:
-                    return 1
-            elif "아니" in res or "않습" in res:
-                if reverse == False:
-                    return 1
-                if reverse == True:
-                    return 5
-            elif "모르" in res or "보통" in res:
-                return 3
-            else:
-                msg = "다시 한번만 말씀해주시겠어요?"
-                self.o_speech.my_tts(msg)
-                return record(reverse)
-                
-        point = 0
-        msg = "아이에게 기대가 큰 편인가요?"
-        print(type(msg),msg)
-        self.o_speech.my_tts(msg)
-        record(False)
-    """
 
 def demo():
     o_p_speech = pibo_speech(True)
@@ -149,8 +126,29 @@ def demo():
     o_p_speech.start()
     o_p_motion.start()
     
-    #o_p_speech.demo(2)
-    o_p_speech.demo(3)
+    time.sleep(3)
+    
+    o_p_speech.demo(5)
+    # time.sleep(10)
+    
+    # o_p_speech.demo(2)
+    # time.sleep(10)
+    
+    # o_p_speech.demo(3)
+    # time.sleep(10)  
+      
+    # o_p_speech.demo(4)
+    # time.sleep(10)
+    
+    # o_p_speech.demo(5)
+    # time.sleep(10)
+    
+    # o_p_speech.demo(6)
+    # time.sleep(10)
+    
+    # o_p_speech.demo(6)
+    # time.sleep(10)
+    
     ### o_p_speech.demo(argument)
     # None argument : all category test
     # argument = 0~7 : 지지표현 ~ 비일관성 까지 카테고리(개별)

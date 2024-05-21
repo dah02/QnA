@@ -6,6 +6,7 @@ from threading import Thread
 import openpibo
 from openpibo.speech import Speech
 from openpibo.audio import Audio
+from openpibo.oled import Oled
 
 import requests
 import json
@@ -13,56 +14,76 @@ import json
 import argparse
 import numpy as np
 
+import os, sys
+
+sys.path.append('/home/pi/Pibo_Package_02/Pibo_Conversation')
+from data.text_to_speech import text_to_speech, TextToSpeech
+from data.speech_to_text import speech_to_text
+import data.behavior.behavior_list as behavior
+import google
+
+
+
 class mySpeech(Speech):
+    
     def __init__(self):
-        super().__init__()
-        self.o_audio=Audio()
-        self.debug = False
-        
-    def my_mic(self, dst, timeout=5):
-        if os.path.isfile(dst):
-            os.remove(dst)
-        #arecord -l 에서 카드가 잡혀야 함. (snd_rpi_simple_card)
-        #cmd = f"arecord -D default -c1 -r 16000 -f S32_LE -d {timeout} -t wav -q -vv -V mono stream.raw;sox stream.raw -c 1 -b 16 {dst};rm stream.raw"
-        cmd = f"arecord -D plughw:2 -c1 -r 16000 -f S32_LE -d {timeout} -t wav -q -vv -V mono stream.raw;sox stream.raw -c 1 -b 16 {dst};rm stream.raw"
-        #cmd = f"arecord -D dmic_sv -c2 -r 48000 -f S32_LE -d {timeout} -t wav -q -vv -V mono stream.raw;sox stream.raw -c 1 -b 16 {dst};rm stream.raw"
-        os.system(cmd)
-        
-        if self.debug:
-            self.o_audio.play(filename=dst, out='local', volume=-1000, background=False)
-            time.sleep(5)
-            self.o_audio.stop()
+        self.response = ''
+        self.anwser = ''
+        self.none = "None"
     
-    def kakao_stt(self,dst):
-        url = 'https://kakaoi-newtone-openapi.kakao.com/v1/recognize'
-        #headers = {'Content-Type':'application/octet-stliream', 'Authorization':'KakaoAK' + kakao_account}
-        headers = {
-          'Content-Type': 'application/octet-stliream',
-          'Authorization': 'KakaoAK ' + self.kakao_account
-        }
-        with open(dst, 'rb') as f:
-            data = f.read()
-        res = requests.post(url, headers=headers, data=data)
+    def stt(self):        
+        audio.audio_play("/home/pi/trigger.wav", 'local', '-1800', False)
+        o.draw_image("/home/pi/Pibo_Package_02/Pibo_Conversation/data/behavior/icon/icon_recognition1.png"); o.show()
+            
         try:
-          result_json_string = res.text[res.text.index('{"type":"finalResult"'):res.text.rindex('}')+1]
-        except Exception as ex:
-          result_json_string = res.text[res.text.index('{"type":"errorCalled"'):res.text.rindex('}')+1]
-        result = json.loads(result_json_string)
-        return result['value']
-    
+            self.response = speech_to_text(timeout=10)
+            # self.response = input("input: ")
+            
+        except google.api_core.exceptions.DeadlineExceeded as e:
+            print(e)
+            self.response = self.none
         
-    def my_stt(self, filename="stream.wav"):
-        self.my_mic(filename)
-        result = self.kakao_stt(filename)
-        return result
+        # 가끔 발생하는 Google API ERROR --> ignore
+        except google.api_core.exceptions.Unknown as e:
+            print(e)
+            self.response = self.none
+        
+        except google.api_core.exceptions.InvalidArgument as e:
+            print(e)
+            self.response = self.none
+        
+        except ValueError as e:     # timeout 시간 넘으면 그냥 retry call 안 하고 중단시킴 (google/api_core/retry.py)
+            print(e)                # Sleep generator stopped yielding sleep values.
+            self.response = self.none
+                
+        # # 나오는 에러 싹 다 무시
+        # except Exception as e:
+        #     print(e)
+        #     self.response = self.none
+        
+        # print(self.response)
+        return self.response
 
-    def my_tts(self, line, filename="stream.wav"):
-        self.tts(f"<speak>\
-                  <voice name='WOMAN_DIALOG_BRIGHT'>{line}<break time='500ms'/></voice>\
-                </speak>",filename)
-        self.o_audio.play(filename, out='local', volume=500, background=False)       
+
     
-if __name__ == "__main__":
+    def tts(self, bhv='do_breath1', voice='nsujin', string=''):
+        """
+        * behavior: TTS 와 함께할 동작 ex. 'do_joy'
+        * string: 발화할 TTS 내용
+        """
+        t = Thread(target=behavior.execute, args=([bhv]))
+        t.start()
+        
+        while True:
+            text_to_speech(voice='nsujin', text=string)
+            break
 
-    speech_obj = mySpeech()
-    speech_obj.test()
+o = Oled()
+audio = TextToSpeech()
+speech_obj = mySpeech()
+# sp = speech_obj.speech_to_text()
+
+# if __name__ == "__main__":
+
+#     speech_obj = mySpeech()
+#     speech_obj.tts(string="do")
